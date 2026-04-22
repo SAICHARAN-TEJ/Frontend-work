@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+      height: 100vh;
+    }
+    
+    #bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      filter: drop-shadow(0 0 10px rgba(255,255,255,0.1));
+    }
+    
+    /* Glassmorphism helper class */
+    .glass {
+      filter: blur(0.5px);
+      transition: filter 0.2s;
+    }
+    .glass:hover {
+      filter: blur(0) drop-shadow(0 0 8px currentColor);
+    }
+  </style>
+</head>
+<body>
+
+<svg id="bg"></svg>
+
+<!-- Define SVG filter for glass blur -->
+<svg style="position:absolute; width:0; height:0;">
+  <defs>
+    <filter id="glassBlur">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" />
+    </filter>
+  </defs>
+</svg>
+
+<script>
+  const svg = document.getElementById('bg');
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '100%');
+
+  let hue = 0;
+  const gravity = 0.25;      // How fast circles accelerate downward
+  const damping = 0.75;      // Bounce energy loss (0-1)
+  const friction = 0.995;    // Air resistance
+  const particles = [];      // Store physics data
+
+  // Create a glass-style circle
+  function createGlassCircle(x, y) {
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    
+    // Random size
+    const r = Math.random() * 25 + 20;
+    
+    // Glassmorphism styles
+    circle.setAttribute('r', r);
+    circle.setAttribute('cx', x);
+    circle.setAttribute('cy', y);
+    circle.setAttribute('fill', `hsla(${hue}, 85%, 65%, 0.25)`); // semi-transparent
+    circle.setAttribute('stroke', `hsla(${hue}, 90%, 75%, 0.8)`); // bright edge
+    circle.setAttribute('stroke-width', '1.5');
+    circle.setAttribute('filter', 'url(#glassBlur)');
+    circle.classList.add('glass');
+    
+    svg.appendChild(circle);
+    
+    // Physics properties
+    particles.push({
+      el: circle,
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 4,  // random horizontal drift
+      vy: (Math.random() - 0.5) * 2 - 3, // slight upward boost on spawn
+      r: r,
+      hue: hue // store initial hue for subtle variation
+    });
+  }
+
+  // Click to spawn
+  document.addEventListener('click', (e) => {
+    createGlassCircle(e.clientX, e.clientY);
+  });
+
+  // Animation loop (physics + color)
+  function animate() {
+    hue = (hue + 0.5) % 360; // smooth color cycle
+    
+    const height = window.innerHeight;
+    const width = window.innerWidth;
+    
+    particles.forEach(p => {
+      // Apply gravity
+      p.vy += gravity;
+      
+      // Apply friction
+      p.vx *= friction;
+      p.vy *= friction;
+      
+      // Update position
+      p.x += p.vx;
+      p.y += p.vy;
+      
+      // Bounce off bottom
+      if (p.y + p.r > height) {
+        p.y = height - p.r;
+        p.vy *= -damping;
+        p.vx *= 0.9; // extra ground friction
+      }
+      
+      // Bounce off sides
+      if (p.x - p.r < 0) {
+        p.x = p.r;
+        p.vx *= -damping;
+      } else if (p.x + p.r > width) {
+        p.x = width - p.r;
+        p.vx *= -damping;
+      }
+      
+      // Update DOM
+      p.el.setAttribute('cx', p.x);
+      p.el.setAttribute('cy', p.y);
+      
+      // Subtle color shift per particle
+      const particleHue = (p.hue + hue) % 360;
+      p.el.setAttribute('fill', `hsla(${particleHue}, 85%, 65%, 0.25)`);
+      p.el.setAttribute('stroke', `hsla(${particleHue}, 90%, 75%, 0.85)`);
+    });
+    
+    // Cleanup: remove particles that are "still" at bottom (optional)
+    if (particles.length > 80) {
+      const old = particles.shift();
+      old.el.remove();
+    }
+    
+    requestAnimationFrame(animate);
+  }
+  
+  // Start animation
+  animate();
+  
+  // Spawn a few on load
+  setTimeout(() => {
+    for(let i=0; i<5; i++) {
+      createGlassCircle(
+        Math.random() * window.innerWidth,
+        Math.random() * window.innerHeight * 0.5
+      );
+    }
+  }, 200);
+</script>
+
+</body>
+</html>
